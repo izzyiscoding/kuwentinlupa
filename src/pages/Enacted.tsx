@@ -103,7 +103,7 @@ function OfficeHistories() {
   const { t } = useLang();
   if (!config.scope.offices?.length && !config.scope.districts?.length) return null;
   return (
-    <Await state={districts} what={t('DPWH office budgets', 'badyet ng mga opisina ng DPWH')}>
+    <Await state={districts} inline what={t('DPWH office budgets', 'badyet ng mga opisina ng DPWH')}>
       {(list) => <OfficeHistoryList list={list} />}
     </Await>
   );

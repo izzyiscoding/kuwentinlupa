@@ -6,6 +6,7 @@ import { usePortal } from '../lib/portal-context';
 import { useLang } from '../lib/lang';
 import type { Reason } from '../lib/scope';
 import { Icon } from './Icons';
+import Loader from './Loader';
 import { STATUS_FIL } from '../lib/words';
 
 
@@ -98,16 +99,13 @@ export function Disclaimers({ items }: { items: Disclaimer[]; compact?: boolean 
 }
 
 /** Render `ready`, or a loading line, or the error with a retry. */
-export function Await<T>({ state, children, what }: { state: Async<T>; children: (value: T) => ReactNode; what: string }) {
+/** `inline`: a section loading inside a page gets the small loader, not the full screen. */
+export function Await<T>({ state, children, what, inline }: { state: Async<T>; children: (value: T) => ReactNode; what: string; inline?: boolean }) {
   const { retry } = usePortal();
   const { t } = useLang();
   if (state.status === 'ready') return <>{children(state.value)}</>;
   if (state.status === 'loading') {
-    return (
-      <div className="state" role="status">
-        <span className="spinner" aria-hidden="true" /> {t(`Loading ${what} from the Budget API…`, `Kinukuha ang ${what} mula sa Budget API…`)}
-      </div>
-    );
+    return <Loader what={what} inline={inline} />;
   }
   return (
     <div className="state state-error" role="alert">

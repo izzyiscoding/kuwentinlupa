@@ -46,7 +46,7 @@ export default function OfficesSection() {
   const projects = scope.status === 'ready' ? scope.value.projects : [];
   return (
     <section className="section" id="offices" aria-labelledby="offices-h">
-      <Await state={districts} what={t('DPWH offices and districts', 'mga opisina at distrito ng DPWH')}>
+      <Await state={districts} inline what={t('DPWH offices and districts', 'mga opisina at distrito ng DPWH')}>
         {(list) => <Offices list={list} queries={queries} projects={projects} />}
       </Await>
     </section>
