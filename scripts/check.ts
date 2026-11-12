@@ -15,10 +15,11 @@ import { argv, cwd, env, exit } from 'node:process';
 import type { PortalConfig } from '../src/config.ts';
 import { createClient } from '../src/api/client.ts';
 import { configProblems, DEFAULT_API } from '../src/config.ts';
-import { resolveScope, summarise } from '../src/lib/scope.ts';
+import { resolveScope, summarise, titleHasWords } from '../src/lib/scope.ts';
 import { departmentShort, gaaYearTotals, resolveGaa } from '../src/lib/gaa.ts';
 import { GAA_YEARS, type GaaEnvelope } from '../src/api/types.ts';
 import { count, php, plural } from '../src/lib/format.ts';
+import { byBarangay } from '../src/lib/barangay.ts';
 
 const verbose = argv.includes('--verbose');
 // --config=examples/deo.config.ts checks another file; default portal.config.ts.
@@ -36,7 +37,11 @@ async function main() {
   console.log('Queries');
   for (const q of scope.queries) {
     const what = q.kind === 'office' ? `office "${q.label}"` : `title names "${q.label}" (q=${q.params.q})`;
-    const kept = q.region ? ` · ${count(q.kept)} kept in region ${q.region} or giving no region` : '';
+    const rules = [
+      q.region && `in region ${q.region} or giving no region`,
+      q.titleOnly && 'whose own title names it',
+    ].filter(Boolean);
+    const kept = rules.length ? ` · ${count(q.kept)} kept ${rules.join(', ')}` : '';
     console.log(`  ${q.dataset.padEnd(5)} ${what}: ${count(q.total)}${kept}`);
     if (q.kind === 'office') {
       if (q.total === 0) problems.push(`office "${q.label}" matches no DPWH line. Use the name as published: npm run setup -- --list-offices`);
@@ -66,6 +71,22 @@ async function main() {
     if (verbose) for (const p of nameOnly) console.log(`    ${p.key}  [${p.office}]  ${p.title}`);
   }
 
+  // The API's q searches the office name too, so a place named in a shared
+  // office ("Las Piñas Muntinlupa …") brings in the neighbour's lines. Often
+  // harmless ("Carmen Bohol": the town in the title, the province in the
+  // office), so this asks for a review rather than prescribing titleOnly.
+  for (const p of config.scope.places ?? []) {
+    if (p.titleOnly) continue;
+    const q = p.q ?? p.label;
+    const loose = scope.projects.filter(
+      (r) => r.reasons.every((x) => x.kind === 'place') && r.reasons.some((x) => x.label === p.label) && !titleHasWords(r.title, q),
+    );
+    if (loose.length) {
+      warnings.push(`${loose.length} line(s) found by "${q}" match partly on the office name, not their own title. Review them (--verbose); if they belong to a neighbouring place, set titleOnly: true.`);
+      if (verbose) for (const r of loose) console.log(`    ${r.key}  [${r.office}]  ${r.title}`);
+    }
+  }
+
   const s = summarise(scope.projects);
   console.log(`\nIn the portal: ${count(s.rows)} lines (${count(scope.excluded.length)} excluded by hand)`);
   console.log(`  NEP:        ${php(s.nep.php)} on ${count(s.nep.rows)} lines`);
@@ -73,6 +94,20 @@ async function main() {
   console.log('  Compared, never added.');
   for (const [g, c] of Object.entries(s.groups)) if (c.rows) console.log(`  ${g.padEnd(13)} ${count(c.rows)}`);
   for (const [d, c] of Object.entries(s.byDataset)) console.log(`  program ${d.padEnd(5)} ${count(c.rows)}`);
+
+  for (const { note, project } of scope.notes) {
+    if (!project) problems.push(`note ${note.key} matches no line in the portal; remove it.`);
+    else console.log(`  note on ${note.key}${note.headline ? ' (headline)' : ''}: ${php(project.house_php ?? project.nep_php)}`);
+  }
+
+  if (config.barangays?.length) {
+    // A line naming two barangays is under both, so these overlap and are not added up.
+    const { groups, unnamed } = byBarangay(scope.projects, config.barangays);
+    console.log(`\nBy barangay named in the title (overlapping; not added up)`);
+    for (const g of groups) console.log(`  ${g.label.padEnd(16)} ${String(g.rows.length).padStart(4)}  NEP ${php(g.summary.nep.php)} · House bill ${php(g.summary.house.php)}`);
+    console.log(`  ${'(none named)'.padEnd(16)} ${String(unnamed.rows.length).padStart(4)}`);
+    if (verbose) for (const r of unnamed.rows) console.log(`    ${r.key}  ${r.title.slice(0, 100)}`);
+  }
 
   for (const id of config.scope.districts ?? []) {
     try {

@@ -10,7 +10,7 @@
  * Nothing is computed that the API does not publish: amounts, statuses and
  * labels are the API's, row for row.
  */
-import { DATASET_KEYS, type DatasetKey, type Exclusion, type PortalConfig } from '../config';
+import { DATASET_KEYS, type DatasetKey, type Exclusion, type LineNote, type PortalConfig } from '../config';
 import type { Client, Params } from '../api/client';
 import type { BridgeGroup, Disclaimer, Meta, OfficeLens, ProjectRow } from '../api/types';
 import { BRIDGE_GROUPS } from '../api/types';
@@ -23,6 +23,8 @@ export interface ScopedProject extends ProjectRow {
   /** `<dataset>:<id>`, the key exclusions and reports use. */
   key: string;
   reasons: Reason[];
+  /** The maintainer's note on this line, if any (config `scope.notes`). */
+  note?: LineNote;
 }
 
 export interface QueryReport {
@@ -32,6 +34,8 @@ export interface QueryReport {
   params: Params;
   /** Place queries: kept to this region key, plus rows that give no region. */
   region?: string;
+  /** Place queries: kept only where the line's own title has every word of `q`. */
+  titleOnly?: boolean;
   /** Rows the API returned. */
   total: number;
   /** Rows kept (after the region rule). */
@@ -45,6 +49,8 @@ export interface QueryReport {
 export interface ScopeResult {
   projects: ScopedProject[];
   excluded: { exclusion: Exclusion; project: ScopedProject | null }[];
+  /** Every configured note, with its line when the line is in the portal. */
+  notes: { note: LineNote; project: ScopedProject | null }[];
   queries: QueryReport[];
   /** Every disclaimer the API attached to the responses used, verbatim, in order. */
   disclaimers: Disclaimer[];
@@ -53,11 +59,20 @@ export interface ScopeResult {
 
 export const projectKey = (dataset: string, id: string) => `${dataset}:${id}`;
 
+// Case- and accent-blind, so "Las Pinas" in a title still matches "Las Piñas".
+export const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+/** Whether a title has every word of a place search, as the API's `q` requires of title or listing. */
+export function titleHasWords(title: string, q: string): boolean {
+  const t = fold(title);
+  return fold(q).split(/\s+/).filter(Boolean).every((w) => t.includes(w));
+}
+
 export async function resolveScope(client: Client, config: PortalConfig): Promise<ScopeResult> {
   const { offices = [], places = [] } = config.scope;
   const exclude = (config.scope.exclude ?? []).filter((e) => !e.key.startsWith('gaa:'));
 
-  type Job = { kind: Reason['kind']; label: string; dataset: DatasetKey; params: Params; region?: string };
+  type Job = { kind: Reason['kind']; label: string; dataset: DatasetKey; params: Params; region?: string; titleOnly?: boolean };
   const jobs: Job[] = [
     ...offices.map((office): Job => ({ kind: 'office', label: office, dataset: 'dpwh', params: { office } })),
     // The region is applied here, not by the API: some lists (irrigation) give
@@ -70,6 +85,7 @@ export async function resolveScope(client: Client, config: PortalConfig): Promis
         dataset,
         params: { q: p.q ?? p.label },
         region: p.region,
+        titleOnly: p.titleOnly,
       })),
     ),
   ];
@@ -83,7 +99,12 @@ export async function resolveScope(client: Client, config: PortalConfig): Promis
 
   for (const [i, job] of jobs.entries()) {
     const { list, rows: fetched, truncated } = results[i];
-    const rows = job.region ? fetched.filter((r) => r.region_key == null || r.region_key === job.region) : fetched;
+    const q = String(job.params.q ?? '');
+    const rows = fetched.filter(
+      (r) =>
+        (!job.region || r.region_key == null || r.region_key === job.region) &&
+        (!job.titleOnly || titleHasWords(r.title, q)),
+    );
     meta ??= list.meta;
     for (const d of list.disclaimers) if (!disclaimers.has(d.id)) disclaimers.set(d.id, d);
     queries.push({
@@ -92,6 +113,7 @@ export async function resolveScope(client: Client, config: PortalConfig): Promis
       dataset: job.dataset,
       params: job.params,
       region: job.region,
+      titleOnly: job.titleOnly,
       total: list.data.total,
       kept: rows.length,
       truncated,
@@ -114,12 +136,17 @@ export async function resolveScope(client: Client, config: PortalConfig): Promis
   const excludedKeys = new Map(exclude.map((e) => [e.key, e]));
   const excluded = exclude.map((exclusion) => ({ exclusion, project: byKey.get(exclusion.key) ?? null }));
   const projects = [...byKey.values()].filter((p) => !excludedKeys.has(p.key)).sort(byHouseThenNep);
+  const notes = (config.scope.notes ?? []).map((note) => {
+    const project = projects.find((p) => p.key === note.key) ?? null;
+    if (project) project.note = note;
+    return { note, project };
+  });
 
   if (!meta) {
     // No queries ran (an empty scope): still return the API's meta for the footer.
     meta = (await client.overview()).meta;
   }
-  return { projects, excluded, queries, disclaimers: ordered, meta };
+  return { projects, excluded, notes, queries, disclaimers: ordered, meta };
 }
 
 function byHouseThenNep(a: ProjectRow, b: ProjectRow): number {

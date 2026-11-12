@@ -10,7 +10,7 @@
 :root {
   /* Paper and ink */
   --paper: #ffffff;
-  --paper-2: #f4f7fc;
+  --paper-2: #f3f8f5;
   --paper-3: #eceef2;
   --rule: #d4d8e0;
   --rule-soft: #e7eaef;
@@ -20,14 +20,59 @@
   --ink-mute: #8a92a1;
 
   /* Accents */
-  --accent: #0b4fd9;        /* BetterGov blue */
-  --accent-deep: #0a44bd;
-  --accent-soft: #e8efff;
-  --positive: #3a6b3a;
+  /* Emerald, for Muntinlupa, the Emerald City. --accent is for text and
+     links; --accent-fill for surfaces with white text on them. */
+  --accent: #047857;
+  --accent-fill: #047857;
+  --accent-fill-2: #0a9a70;
+  --accent-deep: #065f46;
+  --accent-soft: #e3f4ec;
+  --on-accent: #ffffff;
+  /* BetterGov blue: green would be lost beside the emerald "House bill only". */
+  --positive: #0b4fd9;
   --negative: #b8341f;
   --neutral: #8a7c5a;
+  --unchanged: #b7bdc8;
+
+  /* Pills: a soft fill and a readable ink per status */
+  --pill-green: #e3f4ec;   --pill-green-ink: #065f46;
+  --pill-blue: #e8efff;    --pill-blue-ink: #0b3fb0;
+  --pill-red: #fdecea;     --pill-red-ink: #8f2715;
+  --pill-grey: #eef0f3;    --pill-grey-ink: #3c4553;
+  --pill-khaki: #f3efe6;   --pill-khaki-ink: #5e5333;
+
+  /* Notes and warnings */
+  --warn-bg: #fff8e8;
+  --warn-line: #f0d08a;
+  --warn-ink: #5c4108;
+  --warn-icon: #a16207;
+
+  /* Chart series. The House bill takes the accent; the NEP is violet, picked
+     with the dataviz validator to stay apart from emerald for colour-blind
+     readers too (and it is always hatched as well). */
+  --house: #047857;
+  --nep: #7c3aed;
+  --nep-2: #9f6cf2;
+  --gaa: #3f4a5c;
+  --band: #ecf7f1;
+  --tip-bg: #11151c;
+  --tip-ink: #ffffff;
+
+  /* Shape and gloss */
+  --radius: 16px;
+  --radius-sm: 10px;
+  --shadow: 0 1px 2px rgba(17, 21, 28, 0.05), 0 6px 20px rgba(17, 21, 28, 0.07);
+  --shadow-lift: 0 2px 4px rgba(17, 21, 28, 0.06), 0 12px 32px rgba(17, 21, 28, 0.11);
+  --gloss: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --card-bg: linear-gradient(180deg, #ffffff 0%, #fbfdfc 100%);
+  --glass: rgba(6, 95, 70, 0.86);
+  --glass-line: rgba(255, 255, 255, 0.22);
+  --glass-top: rgba(10, 154, 112, 0.92);
+  --nav-active-bg: linear-gradient(180deg, #ffffff, #eaf8f1);
+  --nav-active-ink: #065f46;
 
   /* Type roles */
+  --font-brand: "Bricolage Grotesque", "Figtree", sans-serif;
   --font-hero: "Figtree", "Manrope", -apple-system, BlinkMacSystemFont, sans-serif;
   --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -35,6 +80,62 @@
   /* Layout */
   --page: 1280px;
   --gutter: 32px;
+}
+
+/* Dark: the same roles, stepped for a dark surface. Chart colours were
+   validated against #0e1613 with the dataviz palette script. Applied when the
+   device prefers dark (unless the reader picked light), or when picked. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { color-scheme: dark; }
+  :root:not([data-theme="light"]) {
+    --paper: #0e1613; --paper-2: #14201a; --paper-3: #1c2b23;
+    --rule: #2c3d33; --rule-soft: #1f2e26;
+    --ink: #e7efea; --ink-2: #c2cfc8; --ink-3: #8fa298; --ink-mute: #66786e;
+    --accent: #34d399; --accent-fill: #059669; --accent-fill-2: #10b981; --accent-deep: #a7f3d0; --accent-soft: #0f2d21;
+    --positive: #3b82f6; --negative: #ef4444; --neutral: #a8956a; --unchanged: #56665d;
+    --pill-green: #0f2d21; --pill-green-ink: #86efc4;
+    --pill-blue: #12234a; --pill-blue-ink: #a9c4ff;
+    --pill-red: #3a1715; --pill-red-ink: #fca5a0;
+    --pill-grey: #1f2c25; --pill-grey-ink: #c2cfc8;
+    --pill-khaki: #2b2617; --pill-khaki-ink: #e2d3a8;
+    --warn-bg: #2a2110; --warn-line: #6b5320; --warn-ink: #f5d993; --warn-icon: #fbbf24;
+    --house: #059669; --nep: #8b5cf6; --nep-2: #a78bfa; --gaa: #6b7c92; --band: #10261d;
+    --tip-bg: #e7efea; --tip-ink: #0e1613;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+    --shadow-lift: 0 2px 6px rgba(0, 0, 0, 0.5), 0 14px 36px rgba(0, 0, 0, 0.45);
+    --gloss: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    --card-bg: linear-gradient(180deg, #15211b 0%, #111b16 100%);
+    --glass: rgba(16, 38, 29, 0.82);
+    --glass-line: rgba(167, 243, 208, 0.16);
+    --glass-top: rgba(24, 64, 48, 0.88);
+    --nav-active-bg: linear-gradient(180deg, #34896a, #24684f);
+    --nav-active-ink: #ecfdf5;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #0e1613; --paper-2: #14201a; --paper-3: #1c2b23;
+  --rule: #2c3d33; --rule-soft: #1f2e26;
+  --ink: #e7efea; --ink-2: #c2cfc8; --ink-3: #8fa298; --ink-mute: #66786e;
+  --accent: #34d399; --accent-fill: #059669; --accent-fill-2: #10b981; --accent-deep: #a7f3d0; --accent-soft: #0f2d21;
+  --positive: #3b82f6; --negative: #ef4444; --neutral: #a8956a; --unchanged: #56665d;
+  --pill-green: #0f2d21; --pill-green-ink: #86efc4;
+  --pill-blue: #12234a; --pill-blue-ink: #a9c4ff;
+  --pill-red: #3a1715; --pill-red-ink: #fca5a0;
+  --pill-grey: #1f2c25; --pill-grey-ink: #c2cfc8;
+  --pill-khaki: #2b2617; --pill-khaki-ink: #e2d3a8;
+  --warn-bg: #2a2110; --warn-line: #6b5320; --warn-ink: #f5d993; --warn-icon: #fbbf24;
+  --house: #059669; --nep: #8b5cf6; --nep-2: #a78bfa; --gaa: #6b7c92; --band: #10261d;
+  --tip-bg: #e7efea; --tip-ink: #0e1613;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-lift: 0 2px 6px rgba(0, 0, 0, 0.5), 0 14px 36px rgba(0, 0, 0, 0.45);
+  --gloss: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --card-bg: linear-gradient(180deg, #15211b 0%, #111b16 100%);
+  --glass: rgba(16, 38, 29, 0.82);
+  --glass-line: rgba(167, 243, 208, 0.16);
+  --glass-top: rgba(24, 64, 48, 0.88);
+  --nav-active-bg: linear-gradient(180deg, #34896a, #24684f);
+  --nav-active-ink: #ecfdf5;
 }
 
 * { box-sizing: border-box; }
@@ -45,7 +146,7 @@ html, body {
   background: var(--paper);
   color: var(--ink);
   font-family: var(--font-body);
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.5;
   font-feature-settings: "ss01", "cv11", "tnum";
   -webkit-font-smoothing: antialiased;

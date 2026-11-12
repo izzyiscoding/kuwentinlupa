@@ -68,6 +68,10 @@ scope: {
   and the programs that have no office. `q` is the search: every word must appear
   (`'Carmen Bohol'` needs both). `region` keeps a common name to one region; lines that
   give no region at all (the irrigation list) are kept, since they cannot be ruled out.
+  The API also searches the name of the office a line is listed under, so a city that
+  shares an office ("Las Piñas Muntinlupa District Engineering Office") would get its
+  neighbour's lines; `titleOnly: true` keeps only lines whose own title names the place.
+  `npm run check` warns when a place search finds lines that do not.
 - **The same place names** search the enacted budgets, 2020–2026: every department's
   programs, activities and projects whose name contains `q`. The GAA has no region, so
   `region` cannot narrow these; make `q` specific instead. DPWH offices' yearly totals
@@ -79,6 +83,26 @@ scope: {
 Examples for each kind are in [`examples/`](examples): a DEO, a highly urbanised city
 (Quezon City, whose offices are shared), and a municipality (Carmen, Bohol, a name used
 in several provinces). Check any of them with `npm run check -- --config=examples/deo.config.ts`.
+
+### Optional: barangays, notes and a second language
+
+```ts
+// Group lines by the barangay their title names. A line naming two is under
+// both (barangay totals are never added up); one naming none is shown as such.
+barangays: [{ name: 'Tunasan', match: ['Tunasan', 'BarangayTunasan'] }],
+scope: {
+  // A note on a line that stays in: shown with it and listed on About.
+  // `headline: true` also shows it under the headline figures.
+  notes: [{ key: 'dpwh:house-reading:16062', note: '…', headline: true }],
+},
+// An English/Filipino toggle; the first is the default.
+languages: ['en', 'fil'],
+```
+
+With barangays set, the portal adds a page per barangay (`/barangay/:slug`) and a barangay
+chart. The charts on `/analysis` are drawn from the same lines; the NEP and the House bill are
+always two bars, never one. Text the portal writes is given in both languages where it is
+used (`t('English', 'Filipino')`); what the API writes is printed as published.
 
 ### What it cannot do yet
 

@@ -46,7 +46,14 @@ export default function PortalProvider({ children }: { children: ReactNode }) {
       attempt,
       overview: client.overview(),
       scope,
-      districts: scope.then((s) => Promise.all(districtIds(s, config.scope.districts ?? []).map((id) => client.district(id)))),
+      districts: scope.then(async (s) => {
+        const first = await Promise.all(districtIds(s, config.scope.districts ?? []).map((id) => client.district(id)));
+        // An office is shown with every district it serves, so fetch the
+        // districts a shared office also serves (a place-only portal names only its own).
+        const have = new Set(first.map((e) => e.data.id));
+        const more = [...new Set(first.flatMap((e) => e.data.offices.flatMap((o) => o.district_ids)))].filter((id) => !have.has(id));
+        return [...first, ...(await Promise.all(more.map((id) => client.district(id))))];
+      }),
     };
   }, [client, config, attempt]);
 

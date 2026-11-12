@@ -1,13 +1,14 @@
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import portal from './portal.config';
-import { DEFAULT_API, shortNameOf } from './src/config';
+import { DEFAULT_API, shortNameOf, taglineOf } from './src/config';
 
 const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 
 /** The portal's name and description in the HTML itself, for link previews and search engines. */
 function portalHtml(api: string): Plugin {
-  const title = `${portal.name} · FY 2027 budget projects`;
+  const tagline = taglineOf(portal);
+  const title = tagline ? `${portal.name} · ${tagline}` : `${portal.name} · FY 2027 budget projects`;
   const description = `Every FY 2027 project for ${shortNameOf(portal)} in the NEP and the House bill (House Bill 10858), with the source page for each, and the enacted budgets 2020–2026. Data from the BetterGov.ph Budget API.`;
   const url = portal.siteUrl
     ? `<link rel="canonical" href="${escape(portal.siteUrl)}" />\n    <meta property="og:url" content="${escape(portal.siteUrl)}" />`

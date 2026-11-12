@@ -16,6 +16,7 @@ import { count, php, phpDelta, plural } from '../lib/format';
 import { usePortal } from '../lib/portal-context';
 import type { QueryReport, ScopedProject } from '../lib/scope';
 import { Await, External } from './Bits';
+import { useLang } from '../lib/lang';
 
 interface DistrictRow {
   id: string;
@@ -38,13 +39,14 @@ interface OfficeView {
 
 export default function OfficesSection() {
   const { districts, scope, config } = usePortal();
+  const { t } = useLang();
   // Nothing to show for a scope with neither offices nor districts.
   if (!config.scope.offices?.length && !config.scope.districts?.length) return null;
   const queries = scope.status === 'ready' ? scope.value.queries.filter((q) => q.kind === 'office') : [];
   const projects = scope.status === 'ready' ? scope.value.projects : [];
   return (
     <section className="section" id="offices" aria-labelledby="offices-h">
-      <Await state={districts} what="DPWH offices and districts">
+      <Await state={districts} what={t('DPWH offices and districts', 'mga opisina at distrito ng DPWH')}>
         {(list) => <Offices list={list} queries={queries} projects={projects} />}
       </Await>
     </section>
@@ -87,6 +89,7 @@ function buildOffices(cards: DistrictCard[], queries: QueryReport[], projects: S
 
 function Offices({ list, queries, projects }: { list: Envelope<DistrictCard>[]; queries: QueryReport[]; projects: ScopedProject[] }) {
   const { overview } = usePortal();
+  const { t, n } = useLang();
   const cards = list.map((e) => e.data);
   const { offices, noOffice } = buildOffices(cards, queries, projects);
   const districtCount = new Set(offices.flatMap((o) => o.districts.map((d) => d.id)).concat(noOffice.map((c) => c.id))).size;
@@ -97,12 +100,11 @@ function Offices({ list, queries, projects }: { list: Envelope<DistrictCard>[]; 
   return (
     <>
       <h2 id="offices-h" className="section-h">
-        {plural(offices.length, 'DPWH district engineering office')}, serving {plural(districtCount, 'legislative district')}
+        {t(`${plural(offices.length, 'DPWH district engineering office')}, serving ${plural(districtCount, 'legislative district')}`, `${n(offices.length, '', 'opisina ng distrito ng DPWH')}, para sa ${n(districtCount, '', 'distritong pambatas')}`)}
       </h2>
       <p className="section-lede">
-        DPWH lists its money by the district engineering office that does the work. Each office serves one or more legislative
-        districts, and a shared office’s money is never split between them. Representatives shown hold the seat in the 20th
-        Congress.{note && <> {note}</>}
+        {t('DPWH lists its money by the office that does the work. A shared office’s money is shown whole, never split.', 'Inililista ng DPWH ang pera ayon sa opisinang gumagawa. Buo ang ipinapakita sa opisinang pinaghahatian, hindi hinahati.')}
+        {note && <> {note}</>}
       </p>
 
       <div className={`ogrid${offices.length === 1 ? ' one' : ''}`}>
@@ -111,11 +113,11 @@ function Offices({ list, queries, projects }: { list: Envelope<DistrictCard>[]; 
 
       {noOffice.length > 0 && (
         <p className="fine">
-          No DPWH district office is listed for {noOffice.map((c) => c.label).join('; ')}.
+          {t('No DPWH district office is listed for', 'Walang nakalistang opisina ng DPWH para sa')} {noOffice.map((c) => c.label).join('; ')}.
         </p>
       )}
       <p className="fine">
-        Office figures are its named projects in the 2027 NEP and the House bill, compared, never added.
+        {t('Office figures are its named projects in the 2027 NEP and the House bill, compared, never added.', 'Ang numero ng opisina ay ang mga proyekto nito sa NEP at House bill ng 2027, pinaghahambing, hindi pinagsasama.')}
         {residualTerm && <> {residualTerm.term}: {residualTerm.meaning.charAt(0).toLowerCase() + residualTerm.meaning.slice(1)}</>}
         {credits.length > 0 && <> Portraits: {credits.join('; ')}.</>}
       </p>
@@ -125,11 +127,12 @@ function Offices({ list, queries, projects }: { list: Envelope<DistrictCard>[]; 
 
 function Office({ view }: { view: OfficeView }) {
   const { office, printed, query, lines, districts } = view;
+  const { t, n } = useLang();
   const f = office.fy2027;
   const wholeNep = office.years?.find((y) => y.fy === 2027 && y.stage === 'nep')?.php ?? null;
   const change = f && f.nep_php != null && f.hgab3_php != null ? f.hgab3_php - f.nep_php : null;
   // The project list, narrowed to this office's lines (and a status).
-  const filter = (status?: string) => `/?office=${encodeURIComponent(printed)}${status ? `&status=${status}` : ''}#projects`;
+  const filter = (status?: string) => `/projects?office=${encodeURIComponent(printed)}${status ? `&status=${status}` : ''}`;
   const groups = f ? BRIDGE_GROUPS.map((g) => f.bridge.groups[g]).filter((c) => c && c.rows > 0) : [];
   const unconfirmed = f?.annotations?.unconfirmed_rows ?? 0;
   const held = f?.office_change?.rows ?? 0;
@@ -146,8 +149,8 @@ function Office({ view }: { view: OfficeView }) {
 
       <dl className="ocard-figs">
         <div>
-          <dt className="label">In this portal</dt>
-          <dd>{lines ? <Link to={filter()} className="ocard-lines">{plural(lines, 'line')} →</Link> : <span className="muted">none</span>}</dd>
+          <dt className="label">{t('In this portal', 'Sa portal na ito')}</dt>
+          <dd>{lines ? <Link to={filter()} className="ocard-lines">{n(lines, 'line', 'linya')} →</Link> : <span className="muted">{t('none', 'wala')}</span>}</dd>
         </div>
         <div>
           <dt className="label">NEP</dt>
@@ -158,7 +161,7 @@ function Office({ view }: { view: OfficeView }) {
           <dd className="num stat-accent">{php(f?.hgab3_php)}</dd>
         </div>
         <div>
-          <dt className="label">Change</dt>
+          <dt className="label">{t('Change', 'Pagbabago')}</dt>
           <dd className="num">{phpDelta(change)}</dd>
         </div>
       </dl>
@@ -173,17 +176,17 @@ function Office({ view }: { view: OfficeView }) {
         </p>
       )}
       <p className="ocard-note">
-        Named projects{f ? <>: {count(f.nep_records)} in the NEP, {count(f.hgab3_records)} in the House bill</> : null}.
-        {wholeNep != null && <> The whole office in the NEP: {php(wholeNep)}.</>}
-        {unconfirmed > 0 && <> Includes {plural(unconfirmed, 'unconfirmed match', 'unconfirmed matches')} ({php(f?.annotations?.unconfirmed_php)}).</>}
-        {held > 0 && <> {plural(held, 'line')} whose two versions name different offices {held === 1 ? 'is' : 'are'} not in these figures.</>}{' '}
-        <Link to={`/gaa#${office.id}`}>Its budget each year since 2020 →</Link>
+        {t('Named projects of the whole office', 'Mga proyekto ng buong opisina')}{f ? <>: {count(f.nep_records)} NEP · {count(f.hgab3_records)} House bill</> : null}.
+        {wholeNep != null && <> {t('The whole office in the NEP', 'Buong opisina sa NEP')}: {php(wholeNep)}.</>}
+        {unconfirmed > 0 && <> {t(`Includes ${plural(unconfirmed, 'unconfirmed match', 'unconfirmed matches')}`, `Kasama ang ${count(unconfirmed)} hindi kumpirmadong tugma`)} ({php(f?.annotations?.unconfirmed_php)}).</>}
+        {held > 0 && <> {t(`${plural(held, 'line')} whose two versions name different offices ${held === 1 ? 'is' : 'are'} not in these figures.`, `${count(held)} linyang magkaiba ang opisina sa dalawang bersyon ay wala sa mga numerong ito.`)}</>}{' '}
+        <Link to={`/gaa#${office.id}`}>{t('Its budget each year since 2020 →', 'Badyet nito bawat taon mula 2020 →')}</Link>
       </p>
 
       <div className="ocard-districts">
         <p className="label">
-          {districts.length === 1 ? 'Legislative district it serves' : `${districts.length} legislative districts it serves`}
-          {office.tier === 'B' && <> · shared, not split</>}
+          {districts.length === 1 ? t('Legislative district it serves', 'Distritong pinagsisilbihan') : t(`${districts.length} legislative districts it serves`, `${districts.length} distritong pinagsisilbihan`)}
+          {office.tier === 'B' && <> · {t('shared, not split', 'pinaghahatian, hindi hinahati')}</>}
         </p>
         <ul>
           {districts.map((d) => <District key={d.id} row={d} />)}
@@ -192,7 +195,7 @@ function Office({ view }: { view: OfficeView }) {
 
       {!query && office.projects_url && (
         <p className="small">
-          This portal lists only this office’s lines that name its place. <External href={office.projects_url}>All of them</External>
+          {t('This portal lists only this office’s lines that name its place.', 'Ang mga linya lang ng opisinang ito na bumabanggit sa lugar ang nasa portal.')} <External href={office.projects_url}>{t('All of them', 'Lahat ng ito')}</External>
         </p>
       )}
     </article>
@@ -201,6 +204,7 @@ function Office({ view }: { view: OfficeView }) {
 
 function District({ row }: { row: DistrictRow }) {
   const rep = row.card?.representative ?? null;
+  const { t } = useLang();
   const portrait = rep?.portrait ?? null;
   return (
     <li className="odistrict">
@@ -220,12 +224,12 @@ function District({ row }: { row: DistrictRow }) {
       <div>
         <p className="odistrict-label">{row.label}</p>
         <p className="small">
-          {rep ? rep.name : <span className="muted">No representative listed</span>}
+          {rep ? rep.name : <span className="muted">{t('No representative listed', 'Walang nakalistang kinatawan')}</span>}
         </p>
         <p className="odistrict-links small">
           {rep?.bills_url && <External href={rep.bills_url}>Bills</External>}
-          {row.card && <External href={row.card.url}>District page</External>}
-          {row.alsoServedBy.length > 0 && <span className="muted">also served by {row.alsoServedBy.join(', ')}</span>}
+          {row.card && <External href={row.card.url}>{t('District page', 'Pahina ng distrito')}</External>}
+          {row.alsoServedBy.length > 0 && <span className="muted">{t('also served by', 'pinagsisilbihan din ng')} {row.alsoServedBy.join(', ')}</span>}
         </p>
       </div>
     </li>

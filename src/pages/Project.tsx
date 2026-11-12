@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import type { Envelope, ProjectDetail, Version } from '../api/types';
-import { DATASET_KEYS, shortNameOf, type DatasetKey } from '../config';
-import { Await, Disclaimers, External, ReasonTags, StatusChip } from '../components/Bits';
-import { phpDelta, phpFull } from '../lib/format';
+import { DATASET_KEYS, type DatasetKey } from '../config';
+import { Await, Disclaimers, External, NoteFlag, ReasonTags, StatusChip } from '../components/Bits';
+import { useLang } from '../lib/lang';
+import { barangaysOf, slug } from '../lib/barangay';
+import { phpFull } from '../lib/format';
+import { DeltaPill } from '../components/ProjectList';
 import { usePortal, type Async } from '../lib/portal-context';
 import { projectKey } from '../lib/scope';
 import { reportHref } from '../lib/report';
@@ -21,6 +24,7 @@ export default function Project() {
   const { dataset = '', id = '' } = useParams();
   const { client } = usePortal();
   const valid = (DATASET_KEYS as readonly string[]).includes(dataset);
+  const { t } = useLang();
   const [state, setState] = useState<{ key: string; value: Async<Envelope<ProjectDetail>> } | null>(null);
   const key = `${dataset}/${id}`;
 
@@ -39,15 +43,15 @@ export default function Project() {
   if (!valid) {
     return (
       <main className="page main">
-        <p className="state">There is no program called “{dataset}”. <Link to="/">Back to every project</Link></p>
+        <p className="state">{t(`There is no program called “${dataset}”.`, `Walang programang “${dataset}”.`)} <Link to="/projects">{t('Back to every project', 'Bumalik sa lahat ng proyekto')}</Link></p>
       </main>
     );
   }
   const current: Async<Envelope<ProjectDetail>> = state?.key === key ? state.value : { status: 'loading' };
   return (
     <main className="page main">
-      <p className="crumbs"><Link to="/">← Every project</Link></p>
-      <Await state={current} what="the project">
+      <p className="crumbs"><Link to="/projects">← {t('All projects', 'Lahat ng proyekto')}</Link></p>
+      <Await state={current} what={t('the project', 'ang proyekto')}>
         {(env) => <ProjectView env={env} />}
       </Await>
     </main>
@@ -58,7 +62,9 @@ function ProjectView({ env }: { env: Envelope<ProjectDetail> }) {
   const { config, overview, scope, client } = usePortal();
   const location = useLocation();
   const p = env.data;
-  useTitle(`${p.title} · ${shortNameOf(config)}`);
+  const { t } = useLang();
+  // Some titles list many projects; a tab shows only the start anyway.
+  useTitle(`${p.title.length > 60 ? `${p.title.slice(0, 57).trimEnd()}…` : p.title} · ${config.name}`);
 
   const ov = overview.status === 'ready' ? overview.value.data : null;
   const program = ov?.datasets.find((d) => d.key === p.dataset);
@@ -66,17 +72,18 @@ function ProjectView({ env }: { env: Envelope<ProjectDetail> }) {
   const inScope = scope.status === 'ready' ? scope.value.projects.find((x) => x.key === projectKey(p.dataset, p.id)) : undefined;
   const versions = VERSIONS.filter((v) => v !== 'api' || p.dataset === 'dpwh');
   const report = reportHref(config, p, window.location.origin + location.pathname);
+  const brgys = barangaysOf(p.title, config.barangays ?? []);
 
   const details: [string, string | null][] = [
-    ['Program', program?.label ?? p.dataset.toUpperCase()],
-    ['Program line', p.program],
-    ['Sub-line', p.pap],
-    ['DPWH office', p.office],
-    ['Region', p.region],
-    ['How the two versions were matched', p.labels.match?.label ?? null],
-    ['Between the House readings', p.labels.reading?.label ?? null],
-    ['DPWH transparency website', p.labels.dpwh_site?.label ?? null],
-    ['Length', p.length_m != null ? `${Math.round(p.length_m).toLocaleString('en-US')} m` : null],
+    [t('Program', 'Programa'), program?.label ?? p.dataset.toUpperCase()],
+    [t('Program line', 'Linya ng programa'), p.program],
+    [t('Sub-line', 'Kategorya'), p.pap],
+    [t('DPWH office', 'Opisina ng DPWH'), p.office],
+    [t('Region', 'Rehiyon'), p.region],
+    [t('How the two versions were matched', 'Paano pinagtugma ang dalawang bersyon'), p.labels.match?.label ?? null],
+    [t('Between the House readings', 'Sa pagitan ng mga pagbasa sa Kamara'), p.labels.reading?.label ?? null],
+    [t('DPWH transparency website', 'Transparency website ng DPWH'), p.labels.dpwh_site?.label ?? null],
+    [t('Length', 'Haba'), p.length_m != null ? `${Math.round(p.length_m).toLocaleString('en-US')} m` : null],
   ];
 
   return (
@@ -85,15 +92,21 @@ function ProjectView({ env }: { env: Envelope<ProjectDetail> }) {
         {program?.short ?? p.dataset.toUpperCase()}<span className="sep">·</span>FY 2027
         {p.office && <><span className="sep">·</span>{p.office}</>}
       </p>
-      <h1 className="project-h">{p.title}</h1>
+      <h1 className={`project-h${p.title.length > 200 ? ' long' : ''}`}>{p.title}</h1>
       <div className="project-status">
         <StatusChip group={p.bridge_group} label={p.status_label} held={p.held} />
         {p.labels.status.help && <p className="muted">{p.labels.status.help}</p>}
       </div>
+      {inScope?.note && <NoteFlag note={inScope.note} />}
+      {brgys.length > 0 && (
+        <p className="project-brgys">
+          {brgys.map((b) => <Link key={b} to={`/barangay/${slug(b)}`} className="tag tag-brgy">{b}</Link>)}
+        </p>
+      )}
 
       <div className="project-grid">
         <section aria-labelledby="amounts-h">
-          <h2 id="amounts-h" className="section-h">Amount in each version, with the page it is on</h2>
+          <h2 id="amounts-h" className="section-h">{t('Amount in each version, with the page it is on', 'Halaga sa bawat bersyon, at ang pahina nito')}</h2>
           <table className="amounts">
             <tbody>
               {versions.map((v) => {
@@ -103,28 +116,27 @@ function ProjectView({ env }: { env: Envelope<ProjectDetail> }) {
                 return (
                   <tr key={v}>
                     <th scope="row">{versionLabel(v)}</th>
-                    <td className="num r" title={phpFull(amount)}>{amount == null ? <span className="muted">not listed</span> : phpFull(amount)}</td>
+                    <td className="num r" title={phpFull(amount)}>{amount == null ? <span className="muted">{t('not listed', 'wala')}</span> : phpFull(amount)}</td>
                     <td className="r">
-                      {pdf ? <External href={pdf}>{page ? `Page ${page}` : 'Open the document'}</External> : <span className="muted">—</span>}
+                      {pdf ? <External href={pdf}>{page ? t(`Page ${page}`, `Pahina ${page}`) : t('Open the document', 'Buksan ang dokumento')}</External> : <span className="muted">—</span>}
                     </td>
                   </tr>
                 );
               })}
               <tr className="amounts-total">
-                <th scope="row">Change, House bill against the NEP</th>
-                <td className="num r">{phpDelta(p.delta_php)}</td>
+                <th scope="row">{t('Change, House bill against the NEP', 'Pagbabago, House bill laban sa NEP')}</th>
+                <td className="num r"><DeltaPill delta={p.delta_php} /></td>
                 <td />
               </tr>
             </tbody>
           </table>
           <p className="fine">
-            The NEP and the House bill are two versions of one budget, so the amounts are compared, never added. Open the
-            page to check the figure against the document itself.
+            {t('Two versions of one budget: compared, never added. Open the page to check the figure yourself.', 'Dalawang bersyon ng iisang badyet: pinaghahambing, hindi pinagsasama. Buksan ang pahina para suriin mismo.')}
           </p>
 
           {p.labels.flags.length > 0 && (
             <>
-              <h3 className="sub-h">Notes on this line</h3>
+              <h3 className="sub-h">{t('Notes on this line', 'Mga tala sa linyang ito')}</h3>
               <ul className="flags">
                 {p.labels.flags.map((f) => <li key={f.code}>{f.label}{f.help ? <span className="muted"> {f.help}</span> : null}</li>)}
               </ul>
@@ -142,41 +154,41 @@ function ProjectView({ env }: { env: Envelope<ProjectDetail> }) {
             ))}
             {p.lat != null && p.lon != null && (
               <div>
-                <dt className="label">Coordinates in the document</dt>
+                <dt className="label">{t('Coordinates in the document', 'Koordinado sa dokumento')}</dt>
                 <dd>
                   <External href={`https://www.openstreetmap.org/?mlat=${p.lat}&mlon=${p.lon}#map=15/${p.lat}/${p.lon}`}>
-                    {p.lat.toFixed(5)}, {p.lon.toFixed(5)} on the map
+                    {p.lat.toFixed(5)}, {p.lon.toFixed(5)} {t('on the map', 'sa mapa')}
                   </External>
                 </dd>
               </div>
             )}
             <div>
-              <dt className="label">Why it is in this portal</dt>
+              <dt className="label">{t('Why it is in this portal', 'Bakit ito nasa portal')}</dt>
               <dd>
                 {inScope ? (
                   <ReasonTags reasons={inScope.reasons} />
                 ) : (
-                  <span className="muted">It is not among this portal’s projects; it is shown because you followed a link to it.</span>
+                  <span className="muted">{t('Not among this portal’s projects; shown because you followed a link to it.', 'Wala sa mga proyekto ng portal; ipinapakita dahil sinundan mo ang link.')}</span>
                 )}
               </dd>
             </div>
           </dl>
 
           <div className="report">
-            <p className="label">Seen this project on the ground?</p>
+            <p className="label">{t('Seen this project on the ground?', 'Nakita mo na ba ang proyektong ito?')}</p>
             {report ? (
-              <a className="button button-primary" href={report}>Report on this project ↗</a>
+              <a className="button button-primary" href={report}>{t('Report on this project ↗', 'Mag-ulat tungkol dito ↗')}</a>
             ) : (
               <p className="small">
-                Citizen reports will go to one place for every portal, budget.bettergov.ph. Reporting is not open yet.
+                {t('Citizen reports will go to one place for every portal, budget.bettergov.ph. Reporting is not open yet.', 'Ang mga ulat ng mamamayan ay mapupunta sa iisang lugar, budget.bettergov.ph. Hindi pa ito bukas.')}
               </p>
             )}
           </div>
 
           <p className="small links">
-            <External href={p.url}>This project on budget.bettergov.ph</External>
+            <External href={p.url}>{t('This project on budget.bettergov.ph', 'Ang proyektong ito sa budget.bettergov.ph')}</External>
             <br />
-            <External href={client.href(p.api_url)}>The API record (JSON)</External>
+            <External href={client.href(p.api_url)}>{t('The API record (JSON)', 'Ang record sa API (JSON)')}</External>
           </p>
         </aside>
       </div>
